@@ -12,35 +12,38 @@ import (
 
 
 func main(){
-	var cmd *exec.Cmd
-	// cmd := exec.Command("cat", "/proc/cpuinfo")
-	// cpuFrequency, err := cmd.Output()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	cmd = exec.Command("cat", "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
+
+
+	var cpuFrequency [8]string
+	cpuFrequency = getCpuUsage()
+	for i := range cpuFrequency {
+		fmt.Println(cpuFrequency[i])
+	}
+
+	fmt.Printf("CPU Max Freq: %s", getCpuMaxFreq())
+	fmt.Printf("CPU Min Freq: %s", getCpuMinFreq())
+
+}
+
+func getCpuMaxFreq() string {
+	cmd := exec.Command("cat", "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
 	cpuMaxFreq, err := cmd.Output()
 	if err != nil {
 		log.Fatal(err)
 	}
-	cmd = exec.Command("cat", "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq")
+	return string(cpuMaxFreq)
+}
+
+func getCpuMinFreq() string {
+	cmd := exec.Command("cat", "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq")
 	cpuMinFreq, err := cmd.Output()
 	if err != nil {
 		log.Fatal(err)
 	}
-	// fmt.Println(string(cpuFrequency))
-	var cpuFrequency [8]string
-	cpuFrequency = getCpuInfo()
-	for i := range cpuFrequency {
-		fmt.Println(cpuFrequency[i])
-	}
-	// fmt.Println(getCpuInfo())
-	fmt.Println(string(cpuMaxFreq))
-	fmt.Println(string(cpuMinFreq))
-
+	return string(cpuMinFreq)
 }
 
-func getCpuInfo() [8]string {
+func getCpuUsage() [8]string {
 	cmd := exec.Command("cat", "/proc/cpuinfo")
 	osOutput, err := cmd.Output()
 	if err != nil {
