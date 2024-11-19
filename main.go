@@ -6,23 +6,31 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
+	"runtime"
 	"strings"
+	"time"
 )
 
 
 func main(){
 
 
-	var cpuFrequency [8]string
-	cpuFrequency = getCpuUsage()
-	for i := range cpuFrequency {
-		fmt.Println(cpuFrequency[i])
+	var cpuFrequency []string
+	var cpuCount int
+	for true {
+		ClearScreen()
+		cpuFrequency = getCpuUsage(&cpuCount)
+		for i := range cpuFrequency {
+			fmt.Println(cpuFrequency[i])
+		}
+
+		fmt.Printf("CPU Max Freq: %s", getCpuMaxFreq())
+		fmt.Printf("CPU Min Freq: %s", getCpuMinFreq())
+		fmt.Printf("Number of Physical Cores: %d\n", cpuCount)
+		time.Sleep(1 * time.Second)
 	}
-
-	fmt.Printf("CPU Max Freq: %s", getCpuMaxFreq())
-	fmt.Printf("CPU Min Freq: %s", getCpuMinFreq())
-
 }
 
 func getCpuMaxFreq() string {
@@ -43,7 +51,7 @@ func getCpuMinFreq() string {
 	return string(cpuMinFreq)
 }
 
-func getCpuUsage() [8]string {
+func getCpuUsage(Number *int) []string {
 	cmd := exec.Command("cat", "/proc/cpuinfo")
 	osOutput, err := cmd.Output()
 	if err != nil {
@@ -52,17 +60,34 @@ func getCpuUsage() [8]string {
 	text := string(osOutput)
 
 	// before, cpu0Frequency, found := strings.Cut(cpuFrequency, "\n")
-	var cpuFrequency [8]string
+	var cpuFrequency []string
 	var found bool = true
 	var i, index int
+	var temp string
 	for (found) { // Search for next line
 		index = strings.Index(text, "cpu MHz")
 		if(index == -1){
 			break
 		}
 		text = text[index:]
-		cpuFrequency[i], text, found = strings.Cut(text, "\n")
+		temp, text, found = strings.Cut(text, "\n")
+		cpuFrequency = append(cpuFrequency, temp)
 		i++
 	}
+	*Number = i
+	// fmt.Println(i)
 	return cpuFrequency
+}
+
+
+func ClearScreen() {
+    if runtime.GOOS == "windows" {
+        cmd := exec.Command("cmd", "/c", "cls")
+        cmd.Stdout = os.Stdout
+        cmd.Run()
+    } else {
+        cmd := exec.Command("clear")
+        cmd.Stdout = os.Stdout
+        cmd.Run()
+    }
 }
