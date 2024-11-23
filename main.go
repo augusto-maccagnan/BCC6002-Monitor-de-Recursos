@@ -1,93 +1,135 @@
-//go:build linux
-// +build linux
-
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-	"os/exec"
-	"runtime"
+	"main/model"
+	"main/resource"
+	"net/http"
+	"strconv"
 	"strings"
-	"time"
 )
 
+func main() {
 
-func main(){
+ // Create a new request multiplexer
+ // Take incoming requests and dispatch them to the matching handlers
+ mux := http.NewServeMux()
 
+//  r := 
 
-	var cpuFrequency []string
-	var cpuCount int
-	for true {
-		ClearScreen()
-		cpuFrequency = getCpuUsage(&cpuCount)
-		for i := range cpuFrequency {
-			fmt.Println(cpuFrequency[i])
-		}
+ // Register the routes and handlers
+ mux.Handle("/", &homeHandler{})
+ mux.Handle("/resources", &resourcesHandler{})
 
-		fmt.Printf("CPU Max Freq: %s", getCpuMaxFreq())
-		fmt.Printf("CPU Min Freq: %s", getCpuMinFreq())
-		fmt.Printf("Number of Physical Cores: %d\n", cpuCount)
-		time.Sleep(1 * time.Second)
-	}
+ // Run the server
+ http.ListenAndServe(":8080", mux)
 }
 
-func getCpuMaxFreq() string {
-	cmd := exec.Command("cat", "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq")
-	cpuMaxFreq, err := cmd.Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(cpuMaxFreq)
+type homeHandler struct{}
+
+func (h *homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+//  w.Write([]byte(getResources()))
+    w.Write([]byte("This is my home page"))
 }
 
-func getCpuMinFreq() string {
-	cmd := exec.Command("cat", "/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq")
-	cpuMinFreq, err := cmd.Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return string(cpuMinFreq)
-}
+type resourcesHandler struct{}
 
-func getCpuUsage(Number *int) []string {
-	cmd := exec.Command("cat", "/proc/cpuinfo")
-	osOutput, err := cmd.Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	text := string(osOutput)
-
-	// before, cpu0Frequency, found := strings.Cut(cpuFrequency, "\n")
-	var cpuFrequency []string
-	var found bool = true
-	var i, index int
-	var temp string
-	for (found) { // Search for next line
-		index = strings.Index(text, "cpu MHz")
-		if(index == -1){
-			break
-		}
-		text = text[index:]
-		temp, text, found = strings.Cut(text, "\n")
-		cpuFrequency = append(cpuFrequency, temp)
-		i++
-	}
-	*Number = i
-	// fmt.Println(i)
-	return cpuFrequency
-}
-
-
-func ClearScreen() {
-    if runtime.GOOS == "windows" {
-        cmd := exec.Command("cmd", "/c", "cls")
-        cmd.Stdout = os.Stdout
-        cmd.Run()
-    } else {
-        cmd := exec.Command("clear")
-        cmd.Stdout = os.Stdout
-        cmd.Run()
+func (h *resourcesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+    // w.Write([]byte("This is my resources page"))
+    switch {
+    case r.Method == http.MethodGet:
+        h.listResources(w, r)
+        return
     }
+}
+
+func (h *resourcesHandler) listResources(w http.ResponseWriter, r *http.Request){
+	dataText, err := resource.GetResources()
+	if err != nil {
+		InternalServerErrorHandler(w, r)
+		return
+	}
+	jsonBytes, err := convertData(dataText)
+	if err != nil {
+		InternalServerErrorHandler(w, r)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	w.Write(jsonBytes)
+}
+
+func InternalServerErrorHandler(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusInternalServerError)
+    w.Write([]byte("500 Internal Server Error"))
+}
+
+func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
+    w.WriteHeader(http.StatusNotFound)
+    w.Write([]byte("404 Not Found"))
+}
+
+func convertData(dataMap map[string][]string) ([]byte, error) {
+	var data []model.Resources
+	var CpuParams []model.CpuParams
+	var CpuCores []model.CpuCores
+	var Memory []model.Memory
+	var TotalFreq int
+
+	tmp := dataMap["CPU Max Frequency"]
+	before, after, _ := strings.Cut(tmp[0], ":")
+	idx := strings.Index(after, ":")
+	after = after[idx+2:strings.Index(after, "\n")]
+	MaxFreq, _ := strconv.Atoi(after[:7])
+	after = after[:4] + "." + after[4:]
+	CpuParams = append(CpuParams, model.CpuParams{Name: before, Frequency: after})
+
+	tmp = dataMap["CPU Min Frequency"]
+	before, after, _ = strings.Cut(tmp[0], ":")
+	idx = strings.Index(after, ":")
+	after = after[idx+2:strings.Index(after, "\n")]
+	MinFreq, _ := strconv.Atoi(after[:7])
+	after = after[:4] + "." + after[4:]
+	CpuParams = append(CpuParams, model.CpuParams{Name: before, Frequency: after})
+
+	tmp = dataMap["CPU Frequency"]
+	for i := range tmp{
+		before, after, _ = strings.Cut(tmp[i], ":")
+		idx := strings.Index(after, ":")
+		after = after[idx+2:]
+		TempFreq, _ := strconv.Atoi(after[:4] + after[5:])
+		CpuCores = append(CpuCores, model.CpuCores{Name: before, Frequency: after, Percentage: calculatePercentage(TempFreq, MaxFreq, MinFreq)})
+		TotalFreq += TempFreq
+	}
+
+	tmp = dataMap["Total Memory"]
+	before, after, _ = strings.Cut(tmp[0], ":")
+	after = after[:strings.Index(after, "k")-1]
+	after = after[strings.LastIndex(after, " ")+1:]
+	Memory = append(Memory, model.Memory{Name: before, Quantity: after})
+
+	tmp = dataMap["Free Memory"]
+	before, after, _ = strings.Cut(tmp[0], ":")
+	after = after[:strings.Index(after, "k")-1]
+	after = after[strings.LastIndex(after, " ")+1:]
+	Memory = append(Memory, model.Memory{Name: before, Quantity: after})
+
+	tmp = dataMap["Available Memory"]
+	before, after, _ = strings.Cut(tmp[0], ":")
+	after = after[:strings.Index(after, "k")-1]
+	after = after[strings.LastIndex(after, " ")+1:]
+	Memory = append(Memory, model.Memory{Name: before, Quantity: after})
+
+	data = append(data, model.Resources{Cpu: CpuParams, CpuCores: CpuCores, Memory: Memory})
+
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		err = fmt.Errorf("error marshalling data: %v", err)
+		return nil, err
+	}
+	return jsonBytes, nil
+}
+
+func calculatePercentage(frequency int, maxFreq int, minFreq int) string {
+	return strconv.FormatFloat((float64(frequency-minFreq)/float64(maxFreq-minFreq)*100), 'f', 2, 64)
 }
