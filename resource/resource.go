@@ -10,12 +10,18 @@ import (
 func GetResources()  (map[string][]string, error) {
 	var cpuCount int
 	var fields []string
+	var total []string
+	var usage []string
+	var free []string
+	var name []string
 	var resources = make(map[string][]string)
 
-	cpuFrequency := getCpuUsage(&cpuCount)
+	cpuFrequency, cpuCount := getCpuUsage()
 	cpuMaxFreq := getCpuMaxFreq()
 	cpuMinFreq := getCpuMinFreq()
 	memInfo := getMemInfo()
+	diskInfo := getDiskInfo()
+
 
 	for i := range cpuFrequency {
 		fields = append(fields, "CPU " + strconv.Itoa(i) + " frequency: " + cpuFrequency[i])
@@ -41,6 +47,53 @@ func GetResources()  (map[string][]string, error) {
 	fields = append(fields, "Memory " + memInfo[2])
 	resources["Available Memory"] = fields
 
+	for i := range diskInfo {
+		// fmt.Println(diskInfo[i])
+		j := 0
+		for diskInfo[i][j] == ' '{
+			j++
+		}
+		diskInfo[i] = diskInfo[i][j:] // Corta até primeiro texto
+		diskName := diskInfo[i][:strings.Index(diskInfo[i], " ")]
+		diskInfo[i] = diskInfo[i][strings.Index(diskInfo[i], " "):] // Corta até o primeiro espaço
+		j = 0
+		for diskInfo[i][j] == ' '{
+			j++
+		}
+		diskInfo[i] = diskInfo[i][j:] // Corta até primeiro texto
+		diskInfo[i] = diskInfo[i][strings.Index(diskInfo[i], " "):] // Corta até o primeiro espaço
+		j = 0
+		for diskInfo[i][j] == ' '{
+			j++
+		}
+		diskInfo[i] = diskInfo[i][j:] // Corta espaços iniciais
+		diskTotal := diskInfo[i][:strings.Index(diskInfo[i], " ")]
+		diskInfo[i] = diskInfo[i][strings.Index(diskInfo[i], " "):] // Corta até o primeiro espaço
+		j = 0
+		for diskInfo[i][j] == ' '{
+			j++
+		}
+		diskInfo[i] = diskInfo[i][j:] // Corta espaços iniciais
+		diskUsage := diskInfo[i][:strings.Index(diskInfo[i], " ")]
+		diskInfo[i] = diskInfo[i][strings.Index(diskInfo[i], " "):] // Corta até o primeiro espaço
+		j = 0
+		for diskInfo[i][j] == ' '{
+			j++
+		}
+		diskInfo[i] = diskInfo[i][j:] // Corta espaços iniciais
+		diskFree := diskInfo[i][:strings.Index(diskInfo[i], " ")]
+		diskInfo[i] = diskInfo[i][strings.Index(diskInfo[i], " "):] // Corta até o primeiro espaço
+
+		name = append(name, strconv.Itoa(i) + ":" + diskName)
+		total = append(total, strconv.Itoa(i) + ":" + diskTotal)
+		usage = append(usage, strconv.Itoa(i) + ":" + diskUsage)
+		free = append(free, strconv.Itoa(i) + ":" + diskFree)
+	}
+	resources["Disk Name"] = name
+	resources["Disk Total"] = total
+	resources["Disk Usage"] = usage
+	resources["Disk Free"] = free
+
 	return resources, nil
 }
 
@@ -62,7 +115,7 @@ func getCpuMinFreq() string {
 	return string(cpuMinFreq)
 }
 
-func getCpuUsage(Number *int) []string {
+func getCpuUsage() ([]string, int) {
 	cmd := exec.Command("cat", "/proc/cpuinfo")
 	osOutput, err := cmd.Output()
 	if err != nil {
@@ -84,8 +137,7 @@ func getCpuUsage(Number *int) []string {
 		cpuFrequency = append(cpuFrequency, temp)
 		i++
 	}
-	*Number = i
-	return cpuFrequency
+	return cpuFrequency, i
 }
 
 func getMemInfo() []string {
@@ -110,4 +162,26 @@ func getMemInfo() []string {
 	}
 
 	return memInfo
+}
+
+func getDiskInfo() []string {
+	var diskInfo []string
+	var found bool = true
+	var after, before string
+	cmd := exec.Command("df", "-T")
+	temp, err := cmd.Output()
+	if err != nil {
+		log.Fatal(err)
+		return nil
+	}
+	after = string(temp)
+	for found {
+		before, after, found = strings.Cut(after, "\n")
+		// if(strings.Contains(before, "ext4")) {
+		if(before != "" && !(strings.Contains(before, "Tipo") || strings.Contains(before, "Type"))) {
+			diskInfo = append(diskInfo, before)
+		}
+		// }
+	}
+	return diskInfo
 }

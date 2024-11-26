@@ -69,58 +69,107 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("404 Not Found"))
 }
 
+
 func convertData(dataMap map[string][]string) ([]byte, error) {
 	var data []model.Resources
 	var CpuParams []model.CpuParams
 	var CpuCores []model.CpuCores
 	var Memory []model.Memory
+	var Disk []model.Disk
 	var TotalFreq int
 
 	tmp := dataMap["CPU Max Frequency"]
-	before, after, _ := strings.Cut(tmp[0], ":")
+	_, after, _ := strings.Cut(tmp[0], ":")
 	idx := strings.Index(after, ":")
 	after = after[idx+2:strings.Index(after, "\n")]
-	MaxFreq, _ := strconv.Atoi(after[:7])
-	after = after[:4] + "." + after[4:]
-	CpuParams = append(CpuParams, model.CpuParams{Name: before, Frequency: after})
+	MaxFreq, _ := strconv.Atoi(after[:len(after)-3])
+	// after = after[:len(after)-3] + "." + after[len(after)-3:]
+	// CpuParams = append(CpuParams, model.CpuParams{Name: before, Frequency: MaxFreq})
 
 	tmp = dataMap["CPU Min Frequency"]
-	before, after, _ = strings.Cut(tmp[0], ":")
+	_, after, _ = strings.Cut(tmp[0], ":")
 	idx = strings.Index(after, ":")
 	after = after[idx+2:strings.Index(after, "\n")]
-	MinFreq, _ := strconv.Atoi(after[:7])
-	after = after[:4] + "." + after[4:]
-	CpuParams = append(CpuParams, model.CpuParams{Name: before, Frequency: after})
+	MinFreq, _ := strconv.Atoi(after[:len(after)-3])
+	// after = after[:len(after)-3] + "." + after[len(after)-3:]
+	
+	tmp = dataMap["Number of Physical Cores"]
+	_ , after, _ = strings.Cut(tmp[0], ":")
+	CoreCount, err := strconv.Atoi(after[1:])
+	if(err != nil){
+		return nil, err
+	}
 
 	tmp = dataMap["CPU Frequency"]
 	for i := range tmp{
-		before, after, _ = strings.Cut(tmp[i], ":")
+		before, after, _ := strings.Cut(tmp[i], ":")
 		idx := strings.Index(after, ":")
 		after = after[idx+2:]
-		TempFreq, _ := strconv.Atoi(after[:4] + after[5:])
-		CpuCores = append(CpuCores, model.CpuCores{Name: before, Frequency: after, Percentage: calculatePercentage(TempFreq, MaxFreq, MinFreq)})
+		after = after[:strings.Index(after, ".")-1] + after[strings.Index(after, ".")+1:]
+		after = after[:len(after)-2]
+		TempFreq, _ := strconv.Atoi(after)
+		CpuCores = append(CpuCores, model.CpuCores{Name: before, Frequency: TempFreq, Percentage: calculatePercentage(TempFreq, MaxFreq, MinFreq)})
 		TotalFreq += TempFreq
 	}
 
+	CpuParams = append(CpuParams, model.CpuParams{MaxFrequency: MaxFreq, MinFrequency: MinFreq, CoreNumber: CoreCount, TotalUse: float64(TotalFreq/CoreCount), Percentage: calculatePercentage((TotalFreq/CoreCount), MaxFreq, MinFreq)})
+
 	tmp = dataMap["Total Memory"]
-	before, after, _ = strings.Cut(tmp[0], ":")
+	_, after, _ = strings.Cut(tmp[0], ":")
 	after = after[:strings.Index(after, "k")-1]
-	after = after[strings.LastIndex(after, " ")+1:]
-	Memory = append(Memory, model.Memory{Name: before, Quantity: after})
+	TotalMem, err := strconv.ParseFloat(after[strings.LastIndex(after, " ")+1:], 64)
+	if(err != nil){
+		return nil, err
+	}
 
 	tmp = dataMap["Free Memory"]
-	before, after, _ = strings.Cut(tmp[0], ":")
+	_, after, _ = strings.Cut(tmp[0], ":")
 	after = after[:strings.Index(after, "k")-1]
-	after = after[strings.LastIndex(after, " ")+1:]
-	Memory = append(Memory, model.Memory{Name: before, Quantity: after})
+	FreeMem, err := strconv.ParseFloat(after[strings.LastIndex(after, " ")+1:], 64)
+	if(err != nil){
+		return nil, err
+	}
 
 	tmp = dataMap["Available Memory"]
-	before, after, _ = strings.Cut(tmp[0], ":")
+	_ , after, _ = strings.Cut(tmp[0], ":")
 	after = after[:strings.Index(after, "k")-1]
-	after = after[strings.LastIndex(after, " ")+1:]
-	Memory = append(Memory, model.Memory{Name: before, Quantity: after})
+	AvailableMem, err := strconv.ParseFloat(after[strings.LastIndex(after, " ")+1:], 64)
+	if(err != nil){
+		return nil, err
+	}
+	UsedMem := TotalMem - AvailableMem
+	percentage, err := strconv.ParseFloat(fmt.Sprintf("%.2f", ((UsedMem/TotalMem)*100)), 64)
+	if(err != nil){
+		return nil, err
+	}
+	Memory = append(Memory, model.Memory{Total: TotalMem, Available: AvailableMem, Free: FreeMem, Used: UsedMem, Percentage: percentage})
 
-	data = append(data, model.Resources{Cpu: CpuParams, CpuCores: CpuCores, Memory: Memory})
+	name := dataMap["Disk Name"]
+	total := dataMap["Disk Total"]
+	usage := dataMap["Disk Usage"]
+	free := dataMap["Disk Free"]
+	for i := range total {
+		_, after, _ := strings.Cut(name[i], ":")
+		Name := after[strings.LastIndex(after, " ")+1:]
+
+		_, after, _ = strings.Cut(total[i], ":")
+		TotalDisk, err := strconv.Atoi(after[strings.LastIndex(after, " ")+1:])
+		if err != nil {
+			return nil, err
+		}
+		_, after, _ = strings.Cut(usage[i], ":")
+		UsedDisk, err := strconv.Atoi(after[strings.LastIndex(after, " ")+1:])
+		if err != nil {
+			return nil, err
+		}
+		_, after, _ = strings.Cut(free[i], ":")
+		FreeDisk, err := strconv.Atoi(after[strings.LastIndex(after, " ")+1:])
+		if err != nil {
+			return nil, err
+		}
+		Disk = append(Disk, model.Disk{Name : Name, Total: TotalDisk, Used: UsedDisk, Free: FreeDisk, Percentage: calculatePercentage(UsedDisk, TotalDisk, 0)})
+	}
+	data = append(data, model.Resources{Cpu: CpuParams, CpuCores: CpuCores, Memory: Memory, Disk: Disk})
 
 	jsonBytes, err := json.Marshal(data)
 	if err != nil {
@@ -130,6 +179,7 @@ func convertData(dataMap map[string][]string) ([]byte, error) {
 	return jsonBytes, nil
 }
 
-func calculatePercentage(frequency int, maxFreq int, minFreq int) string {
-	return strconv.FormatFloat((float64(frequency-minFreq)/float64(maxFreq-minFreq)*100), 'f', 2, 64)
+func calculatePercentage(frequency int, maxFreq int, minFreq int) float64 {
+	percentage, _ := strconv.ParseFloat(fmt.Sprintf("%.2f", float64(frequency-minFreq)/float64(maxFreq-minFreq)*100), 64)
+	return percentage
 }
