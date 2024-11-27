@@ -1,4 +1,5 @@
 logs/
 *.log
-build/
+backend/build/
 *.json
+frontend-sp/
