@@ -1,5 +1,5 @@
 logs/
 *.log
-*.json
 backend/build/
 frontend/node_modules/
+.vscode
