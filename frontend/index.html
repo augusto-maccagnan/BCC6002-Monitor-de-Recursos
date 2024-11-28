@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Monitor de Recursos</title>
+        <link rel="stylesheet" href="./static/css/index.css" />
+    </head>
+    <body>
+        <nav class="nav">
+            <a href="/" class="nav__link">Dashboard</a>
+            <a href="/settings" class="nav__link">Settings</a>
+        </nav>
+        <div id="app"></div>
+        <div id="total_cpu">
+            <div id="core_count_label">
+                <strong id="core_count"></strong>
+            </div>
+            <div id="max_frequency_label">
+                <strong id="max_frequency"></strong>
+            </div>
+            <div id="min_frequency_label">
+                <strong id="min_frequency"></strong>
+            </div>
+            <div id="total_use_label"><strong id="total_use"></strong></div>
+            <div id="percentage_label"><strong id="percentage"></strong></div>
+        </div>
+
+        <script type="module" src="./static/js/index.js"></script>
+    </body>
+</html>

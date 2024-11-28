@@ -23,6 +23,7 @@ func main() {
  mux.Handle("/resources", &resourcesHandler{})
 
  // Run the server
+ fmt.Println("Starting server on :8080")
  http.ListenAndServe(":8080", mux)
 }
 
@@ -36,7 +37,7 @@ func (h *homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 type resourcesHandler struct{}
 
 func (h *resourcesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    // w.Write([]byte("This is my resources page"))
+    enableCors(&w)
     switch {
     case r.Method == http.MethodGet:
         h.listResources(w, r)
@@ -69,6 +70,10 @@ func NotFoundHandler(w http.ResponseWriter, r *http.Request) {
     w.Write([]byte("404 Not Found"))
 }
 
+// Enable any origin to access the API
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	}
 
 func convertData(dataMap map[string][]string) ([]byte, error) {
 	var data []model.Resources

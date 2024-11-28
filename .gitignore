@@ -1,5 +1,5 @@
 logs/
 *.log
-backend/build/
 *.json
-frontend-sp/
+backend/build/
+frontend/node_modules/
