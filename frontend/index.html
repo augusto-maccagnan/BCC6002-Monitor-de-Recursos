@@ -12,20 +12,29 @@
             <a href="/settings" class="nav__link">Settings</a>
         </nav>
         <div id="app"></div>
-        <div id="total_cpu">
-            <div id="core_count_label">
-                <strong id="core_count"></strong>
+        <div id="single-box">
+            <div id="total_cpu">
+                <div id="core_count_label">
+                    <strong id="core_count"></strong>
+                </div>
+                <div id="max_frequency_label">
+                    <strong id="max_frequency"></strong>
+                </div>
+                <div id="min_frequency_label">
+                    <strong id="min_frequency"></strong>
+                </div>
+                <div id="total_use_label"><strong id="total_use"></strong></div>
+                <div id="percentage_label"><strong id="percentage"></strong></div>
             </div>
-            <div id="max_frequency_label">
-                <strong id="max_frequency"></strong>
+            <div id="memory">
+                <div id="total_memory_label"><strong id="total_memory"></strong></div>
+                <div id="free_memory_label"><strong id="free_memory"></strong></div>
+                <div id="used_memory_label"><strong id="used_memory"></strong></div>
+                <div id="percentage_memory_label"><strong id="percentage_memory"></strong></div>
             </div>
-            <div id="min_frequency_label">
-                <strong id="min_frequency"></strong>
-            </div>
-            <div id="total_use_label"><strong id="total_use"></strong></div>
-            <div id="percentage_label"><strong id="percentage"></strong></div>
         </div>
-
+        <div id="cores_cpu"></div>
+        <div id="disks"></div>
         <script type="module" src="./static/js/index.js"></script>
     </body>
 </html>

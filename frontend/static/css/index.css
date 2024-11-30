@@ -40,7 +40,7 @@ strong {
 
 #app {
     display: flex;
-    flex-direction: row;
+    flex-flow: row wrap;
     margin: 2em;
     line-height: 1.5;
     font-weight: 500;
@@ -53,6 +53,51 @@ strong {
     font-weight: 500;
 }
 
+#total_cpu > div {
+    min-width: max-content;
+}
+
 a {
     color: #009579;
+}
+
+#memory {
+    margin: 2em;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+#memory > div {
+    min-width: max-content;
+}
+
+#cores_cpu {
+    display: flex;
+    margin: 2em;
+    line-height: 0.5;
+    font-weight: 500;
+    flex-flow: row wrap;
+}
+
+#cores_cpu > div {
+    margin: 10px;
+    min-width: max-content;
+}
+
+#disks {
+    display: flex;
+    margin: 2em;
+    line-height: 0.5;
+    font-weight: 500;
+    flex-flow: row wrap;
+}
+
+#disks > div {
+    margin: 10px;
+    min-width: max-content;
+}
+
+#single-box {
+    display: flex;
+    flex-flow: row wrap;
 }
