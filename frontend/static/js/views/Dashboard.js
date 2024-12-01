@@ -1,5 +1,4 @@
 import AbstractView from "./AbstractView.js";
-const url = "http://localhost:8080/resources";
 
 const total_cpu = document.querySelector("#total_cpu");
 const core_count_label = document.querySelector("#core_count_label");
@@ -28,11 +27,36 @@ const percentage_memory_label = document.querySelector("#percentage_memory_label
 const percentage_memory = document.getElementById("percentage_memory");
 const app = document.getElementById("app");
 
+async function getUrl() {
+    fetch("api/port")
+        .then((response) => response.json())
+        .then((data) => {
+            const PORT = data.port; // Update PORT with the value from the server
+            console.log(data);
+            // url = "http://localhost:" + PORT + "/resources";
+            console.log("GET: http://localhost:" + PORT + "/resources");
+            return "http://localhost:" + PORT + "/resources";
+        })
+        .catch((err) => console.log(err));
+}
 export default class extends AbstractView {
     constructor() {
         super();
         this.setTitle("Dashboard");
     }
+
+    // getUrl() {
+    //     fetch("api/port")
+    //         .then((response) => response.json())
+    //         .then((data) => {
+    //             const PORT = data.port; // Update PORT with the value from the server
+    //             console.log(data);
+    //             // url = "http://localhost:" + PORT + "/resources";
+    //             console.log("GET: http://localhost:" + PORT + "/resources");
+    //             return;
+    //         })
+    //         .catch((err) => console.log(err));
+    // }
 
     async getHtml() {
         app.style.display = "none";
@@ -41,136 +65,148 @@ export default class extends AbstractView {
         if (json === null) {
             localStorage.setItem("timer", JSON.stringify({ tempoAtualizacao: 2 }));
         }
+
         json = JSON.parse(localStorage.getItem("timer"));
-        setInterval(
-            () => {
+        fetch("api/port")
+            .then((response) => response.json())
+            .then((data) => {
+                const PORT = data.port; // Update PORT with the value from the server
+                const url = "http://localhost:" + PORT + "/resources";
+                setInterval(
+                    () => {
+                        fetch(url)
+                            .then((response) => response.json())
+                            .then((data) => {
+                                // const temp = JSON.parse(JSON.stringify(data));
+                                let dataItem = data[0];
+                                cpu_params = dataItem.cpu[0];
+                                cpu_cores = dataItem.cpu_cores;
+                                disks = dataItem.disk;
+                                memory = dataItem.memory[0];
+
+                                // Atualizando valores Totais de CPU
+                                core_count.textContent = cpu_params.core_number;
+                                max_frequency.textContent = cpu_params.max_frequency + " MHz";
+                                min_frequency.textContent = cpu_params.min_frequency + " MHz";
+                                total_use.textContent = cpu_params.total_use + " MHz";
+                                percentage.textContent = cpu_params.percentage + "%";
+                                // Atualizando valores de Memória
+                                total_memory.textContent = memory.total / 1000 + " MB";
+                                free_memory.textContent = memory.free / 1000 + " MB";
+                                used_memory.textContent = memory.used / 1000 + " MB";
+                                percentage_memory.textContent = memory.percentage + "%";
+                                // Atualizando valores de Cores de CPU
+                                cpu_cores.forEach((core, number) => {
+                                    const freq = document.getElementById(
+                                        `core-${number}-frequency`
+                                    );
+                                    freq.textContent = `${core.frequency} MHz`;
+                                    const percentage = document.getElementById(
+                                        `core-${number}-percentage`
+                                    );
+                                    percentage.textContent = `${core.percentage}%`;
+                                });
+                                disks.forEach((disk, number) => {
+                                    const total = document.getElementById(`disk-${number}-total`);
+                                    const free = document.getElementById(`disk-${number}-free`);
+                                    const used = document.getElementById(`disk-${number}-used`);
+                                    if (disk.total - 1000 < 0) {
+                                        total.textContent = `${disk.total} Bytes`;
+                                    } else if (disk.total - 1000000 < 0) {
+                                        total.textContent = `${Math.trunc(disk.total / 1000)} MB`;
+                                    } else {
+                                        total.textContent = `${Math.trunc(
+                                            disk.total / 1000000
+                                        )} GB`;
+                                    }
+                                    if (disk.free - 1000 < 0) {
+                                        free.textContent = `${disk.free} Bytes`;
+                                    } else if (disk.free - 1000000 < 0) {
+                                        free.textContent = `${Math.trunc(disk.free / 1000)} MB`;
+                                    } else {
+                                        free.textContent = `${Math.trunc(disk.free / 1000000)} GB`;
+                                    }
+                                    if (disk.used - 1000 < 0) {
+                                        used.textContent = `${disk.used} Bytes`;
+                                    } else if (disk.used - 1000000 < 0) {
+                                        used.textContent = `${Math.trunc(disk.used / 1000)} MB`;
+                                    } else {
+                                        used.textContent = `${Math.trunc(disk.used / 1000000)} GB`;
+                                    }
+                                });
+                            })
+                            .catch((err) => console.log(err));
+                    },
+                    json.tempoAtualizacao ? json.tempoAtualizacao * 1000 : 2 * 1000
+                );
                 fetch(url)
                     .then((response) => response.json())
                     .then((data) => {
-                        // const temp = JSON.parse(JSON.stringify(data));
+                        const temp = JSON.parse(JSON.stringify(data));
                         let dataItem = data[0];
                         cpu_params = dataItem.cpu[0];
                         cpu_cores = dataItem.cpu_cores;
                         disks = dataItem.disk;
                         memory = dataItem.memory[0];
-
-                        // Atualizando valores Totais de CPU
                         core_count.textContent = cpu_params.core_number;
                         max_frequency.textContent = cpu_params.max_frequency + " MHz";
                         min_frequency.textContent = cpu_params.min_frequency + " MHz";
                         total_use.textContent = cpu_params.total_use + " MHz";
                         percentage.textContent = cpu_params.percentage + "%";
-                        // Atualizando valores de Memória
+
                         total_memory.textContent = memory.total / 1000 + " MB";
                         free_memory.textContent = memory.free / 1000 + " MB";
                         used_memory.textContent = memory.used / 1000 + " MB";
                         percentage_memory.textContent = memory.percentage + "%";
-                        // Atualizando valores de Cores de CPU
+
                         cpu_cores.forEach((core, number) => {
-                            const freq = document.getElementById(`core-${number}-frequency`);
-                            freq.textContent = `${core.frequency} MHz`;
-                            const percentage = document.getElementById(`core-${number}-percentage`);
-                            percentage.textContent = `${core.percentage}%`;
+                            const elem = elementFromHtml(`
+                            <div class="core-${number}">
+                                <p>CPU ${number}</p>
+                                <p>Frequência: <strong id="core-${number}-frequency">${core.frequency} Mhz</strong></p>
+                                <p>Porcentagem de uso: <strong id="core-${number}-percentage">${core.percentage}%</strong></p>
+                            </div>
+                            `);
+                            cores_cpu.appendChild(elem);
                         });
+
                         disks.forEach((disk, number) => {
-                            const total = document.getElementById(`disk-${number}-total`);
-                            const free = document.getElementById(`disk-${number}-free`);
-                            const used = document.getElementById(`disk-${number}-used`);
+                            let total, free, used;
                             if (disk.total - 1000 < 0) {
-                                total.textContent = `${disk.total} Bytes`;
+                                total = `${disk.total} Bytes`;
                             } else if (disk.total - 1000000 < 0) {
-                                total.textContent = `${Math.trunc(disk.total / 1000)} MB`;
+                                total = `${Math.trunc(disk.total / 1000)} MB`;
                             } else {
-                                total.textContent = `${Math.trunc(disk.total / 1000000)} GB`;
+                                total = `${Math.trunc(disk.total / 1000000)} GB`;
                             }
                             if (disk.free - 1000 < 0) {
-                                free.textContent = `${disk.free} Bytes`;
+                                free = `${disk.free} Bytes`;
                             } else if (disk.free - 1000000 < 0) {
-                                free.textContent = `${Math.trunc(disk.free / 1000)} MB`;
+                                free = `${Math.trunc(disk.free / 1000)} MB`;
                             } else {
-                                free.textContent = `${Math.trunc(disk.free / 1000000)} GB`;
+                                free = `${Math.trunc(disk.free / 1000000)} GB`;
                             }
                             if (disk.used - 1000 < 0) {
-                                used.textContent = `${disk.used} Bytes`;
+                                used = `${disk.used} Bytes`;
                             } else if (disk.used - 1000000 < 0) {
-                                used.textContent = `${Math.trunc(disk.used / 1000)} MB`;
+                                used = `${Math.trunc(disk.used / 1000)} MB`;
                             } else {
-                                used.textContent = `${Math.trunc(disk.used / 1000000)} GB`;
+                                used = `${Math.trunc(disk.used / 1000000)} GB`;
                             }
+                            const elem = elementFromHtml(`
+                            <div class="disk-${number}">
+                                <p>Disco ${number}</p>
+                                <p>Nome: <strong>${disk.name}</strong></p>
+                                <p>Capacidade: <strong id="disk-${number}-total">${total}</strong></p>
+                                <p>Disponível: <strong id="disk-${number}-free">${free}</strong></p>
+                                <p>Usado: <strong id="disk-${number}-used">${used}</strong></p>
+                                <p>Porcentagem de uso: <strong>${disk.percentage}%</strong></p>
+                            </div>
+                            `);
+                            all_disk.appendChild(elem);
                         });
                     })
                     .catch((err) => console.log(err));
-            },
-            json.tempoAtualizacao ? json.tempoAtualizacao * 1000 : 2 * 1000
-        );
-        fetch(url)
-            .then((response) => response.json())
-            .then((data) => {
-                const temp = JSON.parse(JSON.stringify(data));
-                let dataItem = data[0];
-                cpu_params = dataItem.cpu[0];
-                cpu_cores = dataItem.cpu_cores;
-                disks = dataItem.disk;
-                memory = dataItem.memory[0];
-                core_count.textContent = cpu_params.core_number;
-                max_frequency.textContent = cpu_params.max_frequency + " MHz";
-                min_frequency.textContent = cpu_params.min_frequency + " MHz";
-                total_use.textContent = cpu_params.total_use + " MHz";
-                percentage.textContent = cpu_params.percentage + "%";
-
-                total_memory.textContent = memory.total / 1000 + " MB";
-                free_memory.textContent = memory.free / 1000 + " MB";
-                used_memory.textContent = memory.used / 1000 + " MB";
-                percentage_memory.textContent = memory.percentage + "%";
-
-                console.log(disks);
-
-                cpu_cores.forEach((core, number) => {
-                    const elem = elementFromHtml(`
-                        <div class="core-${number}">
-                            <p>CPU ${number}</p>
-                            <p>Frequência: <strong id="core-${number}-frequency">${core.frequency} Mhz</strong></p>
-                            <p>Porcentagem de uso: <strong id="core-${number}-percentage">${core.percentage}%</strong></p>
-                        </div>
-                        `);
-                    cores_cpu.appendChild(elem);
-                });
-
-                disks.forEach((disk, number) => {
-                    let total, free, used;
-                    if (disk.total - 1000 < 0) {
-                        total = `${disk.total} Bytes`;
-                    } else if (disk.total - 1000000 < 0) {
-                        total = `${Math.trunc(disk.total / 1000)} MB`;
-                    } else {
-                        total = `${Math.trunc(disk.total / 1000000)} GB`;
-                    }
-                    if (disk.free - 1000 < 0) {
-                        free = `${disk.free} Bytes`;
-                    } else if (disk.free - 1000000 < 0) {
-                        free = `${Math.trunc(disk.free / 1000)} MB`;
-                    } else {
-                        free = `${Math.trunc(disk.free / 1000000)} GB`;
-                    }
-                    if (disk.used - 1000 < 0) {
-                        used = `${disk.used} Bytes`;
-                    } else if (disk.used - 1000000 < 0) {
-                        used = `${Math.trunc(disk.used / 1000)} MB`;
-                    } else {
-                        used = `${Math.trunc(disk.used / 1000000)} GB`;
-                    }
-                    const elem = elementFromHtml(`
-                        <div class="disk-${number}">
-                            <p>Disco ${number}</p>
-                            <p>Nome: <strong>${disk.name}</strong></p>
-                            <p>Capacidade: <strong id="disk-${number}-total">${total}</strong></p>
-                            <p>Disponível: <strong id="disk-${number}-free">${free}</strong></p>
-                            <p>Usado: <strong id="disk-${number}-used">${used}</strong></p>
-                            <p>Porcentagem de uso: <strong>${disk.percentage}%</strong></p>
-                        </div>
-                        `);
-                    all_disk.appendChild(elem);
-                });
             })
             .catch((err) => console.log(err));
 

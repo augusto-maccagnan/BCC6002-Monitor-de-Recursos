@@ -5,29 +5,48 @@ import (
 	"fmt"
 	"main/model"
 	"main/resource"
+	"net"
 	"net/http"
-	"runtime"
+	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Buscando arquivo .env
+	err := godotenv.Load("../.env")
+	if err != nil {
+		fmt.Println(".env file not found")
+		fmt.Println("Generating .env file...")
+		os.WriteFile("../.env", []byte(""), 0644)
+		godotenv.Load("../.env")
+	}
 	resourceHandle := &resourcesHandler{}
 
 	// Criando uma goroutine para buscar os recursos a cada 500ms
 	// e atualizar o jsonBytes do handler
  	go getResourcesRoutine(resourceHandle)
 
- // Take incoming requests and dispatch them to the matching handlers
- mux := http.NewServeMux()
+	// Take incoming requests and dispatch them to the matching handlers
+	mux := http.NewServeMux()
+	//  // Register the routes and handlers
+	mux.Handle("/resources", resourceHandle)
 
- // Register the routes and handlers
- mux.Handle("/resources", resourceHandle)
+	// Buscando uma porta disponível
+	ln, _ := net.Listen("tcp", ":0")
+	_, port, _ := net.SplitHostPort(ln.Addr().String())
 
- // Run the server
- fmt.Println("Starting server on :8080")
- http.ListenAndServe(":8080", mux)
+	// Escrevendo a porta no .env
+	env_port := make(map[string]string)
+	env_port["PORT"] = port
+	godotenv.Write(env_port, "../.env")
+
+	fmt.Println("Server starting on: http://localhost:" + port)
+
+	panic(http.Serve(ln, mux))
 }
 
 func getResourcesRoutine(r *resourcesHandler) {
@@ -42,7 +61,6 @@ func getResourcesRoutine(r *resourcesHandler) {
 			fmt.Println("Error converting data")
 			return
 		}
-		fmt.Println(runtime.NumGoroutine())
 		time.Sleep(time.Millisecond * 500) // sleep for 500ms
 	}
 }

@@ -3,3 +3,4 @@ logs/
 backend/build/
 frontend/node_modules/
 .vscode
+*.env
