@@ -7,8 +7,33 @@ import (
 	"strings"
 )
 
+func getCpuCoreInfoRoutine(c1 chan []string, c2 chan int) {
+	cpuFrequency, cpuCount := getCpuUsage()
+	c1 <- cpuFrequency
+	c2 <- cpuCount
+}
+
+func getCpuMaxFreqRoutine(c3 chan string) {
+	cpuMaxFreq := getCpuMaxFreq()
+	c3 <- cpuMaxFreq
+}
+
+func getCpuMinFreqRoutine(c4 chan string) {
+	cpuMinFreq := getCpuMinFreq()
+	c4 <- cpuMinFreq
+}
+
+func getMemInfoRoutine(m1 chan []string) {
+	memInfo := getMemInfo()
+	m1 <- memInfo
+}
+
+func getDiskInfoRountine(d1 chan []string) {
+	diskInfo := getDiskInfo()
+	d1 <- diskInfo
+}
+
 func GetResources()  (map[string][]string, error) {
-	var cpuCount int
 	var fields []string
 	var total []string
 	var usage []string
@@ -16,12 +41,33 @@ func GetResources()  (map[string][]string, error) {
 	var name []string
 	var resources = make(map[string][]string)
 
-	cpuFrequency, cpuCount := getCpuUsage()
-	cpuMaxFreq := getCpuMaxFreq()
-	cpuMinFreq := getCpuMinFreq()
-	memInfo := getMemInfo()
-	diskInfo := getDiskInfo()
+	c1, c2, c3, c4:= make(chan []string), make(chan int), make(chan string), make(chan string)
+	m1 := make(chan []string)
+	d1 := make(chan []string)
 
+	/*
+	Usando goroutines para obter informações de CPU, Memória e Disco em paralelo
+	*/
+	go getCpuCoreInfoRoutine(c1, c2)
+	go getCpuMaxFreqRoutine(c3)
+	go getCpuMinFreqRoutine(c4)
+	go getMemInfoRoutine(m1)
+	go getDiskInfoRountine(d1)
+	// cpuFrequency, cpuCount := getCpuUsage()
+	// cpuMaxFreq := getCpuMaxFreq()
+	// cpuMinFreq := getCpuMinFreq()
+	// memInfo := getMemInfo()
+	// diskInfo := getDiskInfo()
+	/* 
+	Atribuições de valores das goroutines esperam até o valor estar disponível,
+		então a rotina que chamou a goroutine é bloqueada até que o valor seja recebido
+	*/
+	cpuFrequency := <-c1
+	cpuCount := <-c2
+	cpuMaxFreq := <-c3
+	cpuMinFreq := <-c4
+	memInfo := <-m1
+	diskInfo := <-d1
 
 	for i := range cpuFrequency {
 		fields = append(fields, "CPU " + strconv.Itoa(i) + " frequency: " + cpuFrequency[i])

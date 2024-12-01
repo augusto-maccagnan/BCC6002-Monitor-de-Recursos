@@ -6,35 +6,50 @@ import (
 	"main/model"
 	"main/resource"
 	"net/http"
+	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func main() {
+	resourceHandle := &resourcesHandler{}
 
- // Create a new request multiplexer
+	// Criando uma goroutine para buscar os recursos a cada 500ms
+	// e atualizar o jsonBytes do handler
+ 	go getResourcesRoutine(resourceHandle)
+
  // Take incoming requests and dispatch them to the matching handlers
  mux := http.NewServeMux()
 
-//  r := 
-
  // Register the routes and handlers
- mux.Handle("/", &homeHandler{})
- mux.Handle("/resources", &resourcesHandler{})
+ mux.Handle("/resources", resourceHandle)
 
  // Run the server
  fmt.Println("Starting server on :8080")
  http.ListenAndServe(":8080", mux)
 }
 
-type homeHandler struct{}
-
-func (h *homeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-//  w.Write([]byte(getResources()))
-    w.Write([]byte("This is my home page"))
+func getResourcesRoutine(r *resourcesHandler) {
+	for {
+		dataText, err := resource.GetResources()
+		if err != nil {
+			fmt.Println("Error getting resources")
+			return
+		}
+		r.jsonBytes, err = convertData(dataText)
+		if err != nil {
+			fmt.Println("Error converting data")
+			return
+		}
+		fmt.Println(runtime.NumGoroutine())
+		time.Sleep(time.Millisecond * 500) // sleep for 500ms
+	}
 }
 
-type resourcesHandler struct{}
+type resourcesHandler struct{
+	jsonBytes []byte
+}
 
 func (h *resourcesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
     enableCors(&w)
@@ -46,18 +61,29 @@ func (h *resourcesHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *resourcesHandler) listResources(w http.ResponseWriter, r *http.Request){
-	dataText, err := resource.GetResources()
-	if err != nil {
+
+	// Sem goroutine ---------------------
+	// dataMap, err := resource.GetResources()
+	// if err != nil {
+	// 	InternalServerErrorHandler(w, r)
+	// 	return
+	// }
+	// json, err := convertData(dataMap)
+	// if err != nil {
+	// 	InternalServerErrorHandler(w, r)
+	// 	return
+	// }
+	// -----------------------------------
+
+	// Com goroutine ---------------------
+	if h.jsonBytes == nil {
 		InternalServerErrorHandler(w, r)
 		return
 	}
-	jsonBytes, err := convertData(dataText)
-	if err != nil {
-		InternalServerErrorHandler(w, r)
-		return
-	}
+	// -----------------------------------
 	w.WriteHeader(http.StatusOK)
-	w.Write(jsonBytes)
+	// w.Write(json) // Sem goroutine
+	w.Write(h.jsonBytes) // Com goroutine
 }
 
 func InternalServerErrorHandler(w http.ResponseWriter, r *http.Request) {
